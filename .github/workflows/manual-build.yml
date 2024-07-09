@@ -1,0 +1,21 @@
+name: Manual Build
+
+on:
+  workflow_dispatch:  
+  
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - uses: azure/docker-login@v1
+      with:
+        login-server: ghostpocactivecr.azurecr.io
+        username: ${{ secrets.REGISTRY_USERNAME }}
+        password: ${{ secrets.REGISTRY_PASSWORD }}
+
+    - run: |
+        docker build . -t ghostpocactivecr.azurecr.io/myapp:${{ github.sha }}
+        docker push ghostpocactivecr.azurecr.io/myapp:${{ github.sha }}     
