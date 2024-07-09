@@ -17,5 +17,5 @@ jobs:
         password: ${{ secrets.REGISTRY_PASSWORD }}
 
     - run: |
-        docker build . -t ghostpocactivecr.azurecr.io/myapp:${{ github.sha }}
-        docker push ghostpocactivecr.azurecr.io/myapp:${{ github.sha }}     
+        docker build . -t ghostpocactivecr.azurecr.io/myapp
+        docker push ghostpocactivecr.azurecr.io/myapp
