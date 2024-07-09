@@ -12,6 +12,6 @@ jobs:
 
     - uses: azure/webapps-deploy@v2
       with:
-        app-name: 'myapp'
+        app-name: 'ghostpoc'
         publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
         images: 'ghostpocactivecr.azurecr.io/myapp:latest'
