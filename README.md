@@ -26,3 +26,6 @@ mysql_administrator_login_password = "P@$$w0rd!"
 you can learn more about how to set up your your environment for Azure [here](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/guides/service_principal_client_certificate)
 
 ## Bicep
+
+## Pipeline Config
+https://learn.microsoft.com/en-us/azure/app-service/deploy-container-github-action?tabs=publish-profile
