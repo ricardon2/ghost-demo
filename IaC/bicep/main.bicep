@@ -212,8 +212,8 @@ resource frontDoors 'Microsoft.Network/frontDoors@2021-06-01' = {
           backends: [
             {
               priority: 1
-              backendHostHeader: '${applicationName}.azurewebsites.net'
-              address: '${applicationName}.azurewebsites.net'
+              backendHostHeader: '${appServiceName}.azurewebsites.net'
+              address: '${appServiceName}.azurewebsites.net'
               httpPort: 80
               httpsPort: 443
               weight: 1
