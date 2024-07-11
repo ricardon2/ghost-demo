@@ -79,60 +79,15 @@ resource webApp 'Microsoft.Web/sites@2023-12-01' = {
       ftpsState: 'FtpsOnly'
       alwaysOn: true
 
-      appSettings: [
+      ipSecurityRestrictions: [
         {
-          name: 'WEBSITES_PORT'
-          value: '2368'
-        }
-        {
-          name: 'WEBSITES_ENABLE_APP_SERVICE_STORAGE'
-          value: 'true'
-        }
-        {
-          name: 'NODE_ENV'
-          value: 'development'
-        }
-        {
-          name: 'url'
-          value: 'https://ghost-FrontDoor.azurefd.net'
-        }
-        {
-          name: 'GHOST_CONTENT'
-          value: '/var/lib/ghost/content_files/'
-        }
-        {
-          name: 'paths__contentPath'
-          value: '/var/lib/ghost/content_files/'
-        }
-        {
-          name: 'privacy__useUpdateCheck'
-          value: 'false'
-        }
-        {
-          name: 'DOCKER_REGISTRY_SERVER_URL'
-          value: containerregistry.properties.loginServer
-        }
-        {
-          name: 'DOCKER_REGISTRY_SERVER_USERNAME'
-          value: containerregistry.listCredentials().username
-        }
-        {
-          name: 'DOCKER_REGISTRY_SERVER_PASSWORD'
-          value: containerregistry.listCredentials().passwords[0].value
-        }
-        {
-          name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
-          value: appinsights.properties.InstrumentationKey
-        }
-        {
-          name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
-          value: appinsights.properties.ConnectionString
-        }
-        {
-          name: 'ApplicationInsightsAgent_EXTENSION_VERSION'
-          value: '~2'
+            ipAddress: 'AzureFrontDoor.Backend'
+            tag: 'ServiceTag'
+            priority: 300
+            name: 'FrontDoorOnly'
         }
       ]
+
     }
     httpsOnly: true
   }
@@ -160,6 +115,26 @@ resource storageSetting 'Microsoft.Web/sites/config@2023-12-01' = {
       accountName: storageAccount.name
       accessKey: storageAccount.listKeys().keys[0].value
     }
+  }
+}
+
+resource ipSecurityRestrictionsSetting 'Microsoft.Web/sites/config@2023-12-01' = {
+  name: 'appsettings'
+  parent: webApp
+  properties: {
+    WEBSITES_PORT: '2368'
+    WEBSITES_ENABLE_APP_SERVICE_STORAGE: 'true'
+    NODE_ENV: 'development'
+    url: 'https://ghost-FrontDoor.azurefd.net'
+    GHOST_CONTENT: '/var/lib/ghost/content_files/'
+    paths__contentPath: '/var/lib/ghost/content_files/'
+    privacy__useUpdateCheck: 'false'
+    DOCKER_REGISTRY_SERVER_URL: containerregistry.properties.loginServer
+    DOCKER_REGISTRY_SERVER_USERNAME: containerregistry.listCredentials().username
+    DOCKER_REGISTRY_SERVER_PASSWORD: containerregistry.listCredentials().passwords[0].value
+    APPINSIGHTS_INSTRUMENTATIONKEY: appinsights.properties.InstrumentationKey
+    APPLICATIONINSIGHTS_CONNECTION_STRING: appinsights.properties.ConnectionString
+    ApplicationInsightsAgent_EXTENSION_VERSION: '~2'
   }
 }
 

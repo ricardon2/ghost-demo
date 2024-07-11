@@ -27,5 +27,9 @@ you can learn more about how to set up your your environment for Azure [here](ht
 
 ## Bicep
 
+```bicep
+az deployment group create -g alz-sandbox-rg -f main.bicep --confirm-with-what-if
+```
+
 ## Pipeline Config
 https://learn.microsoft.com/en-us/azure/app-service/deploy-container-github-action?tabs=publish-profile
