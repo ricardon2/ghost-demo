@@ -1,7 +1,12 @@
 name: Manual Build
 
 on:
-  workflow_dispatch:  
+  workflow_dispatch:
+    inputs:
+      containerresitryname:
+        description: 'Container Registry Name'
+        required: true
+        default: 'acrhexalzdevwesteurope'
   
 jobs:
   build:
@@ -12,10 +17,10 @@ jobs:
 
     - uses: azure/docker-login@v1
       with:
-        login-server: ghostpocactivecr.azurecr.io
+        login-server: ${{ github.event.inputs.containerResitryName }}.azurecr.io
         username: ${{ secrets.REGISTRY_USERNAME }}
         password: ${{ secrets.REGISTRY_PASSWORD }}
 
     - run: |
-        docker build . -t ghostpocactivecr.azurecr.io/myapp
-        docker push ghostpocactivecr.azurecr.io/myapp
+        docker build . -t ${{ github.event.inputs.containerResitryName }}.azurecr.io/myapp
+        docker push ${{ github.event.inputs.containerResitryName }}.azurecr.io/myapp

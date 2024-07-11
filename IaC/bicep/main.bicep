@@ -1,11 +1,18 @@
-var env_prefix = 'ghostpoc'
-var frontDoorName = 'ghost-FrontDoor'
-
 param location string = resourceGroup().location
-param linuxFxVersion string = 'php|7.4'
+param applicationName string = 'hexalz'
+param enviromentName string = 'dev'
+
+param frontDoorName string = 'fd-${applicationName}-${enviromentName}'
+param applicationInsightsName string = 'ai-${applicationName}-${enviromentName}-${location}-001'
+param storageAccountName string = 'st${applicationName}${location}001'
+param containerRegistryName string = 'acr${applicationName}${enviromentName}${location}'
+param appServicePlanName string = 'asp-${applicationName}-${enviromentName}-${location}-001'
+param appServiceName string = 'as-${applicationName}-${enviromentName}-${location}'
+
+var linuxFxVersion = 'php|7.4'
 
 resource appinsights 'Microsoft.Insights/components@2020-02-02' = {
-  name: 'active-appinsights'
+  name: applicationInsightsName
   location: location
   kind: 'web'
   properties: {
@@ -14,7 +21,7 @@ resource appinsights 'Microsoft.Insights/components@2020-02-02' = {
 }
 
 resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
-  name: '${env_prefix}prod'
+  name: storageAccountName
   location: location
   sku: {
     name: 'Standard_LRS'
@@ -45,7 +52,7 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
 }
 
 resource containerregistry 'Microsoft.ContainerRegistry/registries@2023-11-01-preview' = {
-  name: '${env_prefix}activecr'
+  name: containerRegistryName
   location: location
   sku: {
     name: 'Standard'
@@ -56,8 +63,8 @@ resource containerregistry 'Microsoft.ContainerRegistry/registries@2023-11-01-pr
   }
 }
 
-resource serviceplan 'Microsoft.Web/serverfarms@2023-12-01' = {
-  name: '${env_prefix}-prod-app-service-plan'
+resource serverFarm 'Microsoft.Web/serverfarms@2023-12-01' = {
+  name: appServicePlanName
   location: location
   kind: 'linux'
 
@@ -70,10 +77,10 @@ resource serviceplan 'Microsoft.Web/serverfarms@2023-12-01' = {
 }
 
 resource webApp 'Microsoft.Web/sites@2023-12-01' = {
-  name: env_prefix
+  name: appServiceName
   location: location
   properties: {
-    serverFarmId: serviceplan.id
+    serverFarmId: serverFarm.id
     siteConfig: {
       linuxFxVersion: linuxFxVersion
       ftpsState: 'FtpsOnly'
@@ -118,7 +125,7 @@ resource storageSetting 'Microsoft.Web/sites/config@2023-12-01' = {
   }
 }
 
-resource ipSecurityRestrictionsSetting 'Microsoft.Web/sites/config@2023-12-01' = {
+resource appSettings 'Microsoft.Web/sites/config@2023-12-01' = {
   name: 'appsettings'
   parent: webApp
   properties: {
@@ -205,8 +212,8 @@ resource frontDoors 'Microsoft.Network/frontDoors@2021-06-01' = {
           backends: [
             {
               priority: 1
-              backendHostHeader: '${env_prefix}.azurewebsites.net'
-              address: '${env_prefix}.azurewebsites.net'
+              backendHostHeader: '${applicationName}.azurewebsites.net'
+              address: '${applicationName}.azurewebsites.net'
               httpPort: 80
               httpsPort: 443
               weight: 1
