@@ -173,7 +173,7 @@ resource appSettings 'Microsoft.Web/sites/config@2023-12-01' = {
     WEBSITES_PORT: '2368'
     WEBSITES_ENABLE_APP_SERVICE_STORAGE: 'true'
     NODE_ENV: 'development'
-    url: 'https://ghost-FrontDoor.azurefd.net'
+    url: 'https://${frontDoorEndpoint.properties.hostName}'
     GHOST_CONTENT: '/var/lib/ghost/content_files/'
     paths__contentPath: '/var/lib/ghost/content_files/'
     privacy__useUpdateCheck: 'false'
