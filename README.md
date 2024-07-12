@@ -34,11 +34,15 @@ az deployment group create -g alz-sandbox-rg -f main.bicep --confirm-with-what-i
 ## Pipeline Config
 https://learn.microsoft.com/en-us/azure/app-service/deploy-container-github-action?tabs=publish-profile
 
-## Non-Compliant and Remediation
+## Non-Compliant
 [Preview]: Container Registry should be Zone Redundant
+
+### Remediation
+Update Container Registry with
+```bicep
+zoneRedundancy: 'Enabled' 
+```
 
 ## Exemption
 [Preview]: Storage Accounts should be Zone Redundant
-
-## Remove policy from Management Group
-[Preview]: App Service Plans should be Zone Redundant
+To remove an Initiative or Policy, you must use the management group. But if you just want to disable it in a specific place, you create an exemption.
