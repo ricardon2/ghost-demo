@@ -2,14 +2,23 @@ param location string = resourceGroup().location
 param applicationName string = 'hexalz'
 param enviromentName string = 'dev'
 
-param frontDoorName string = 'fd-${applicationName}-${enviromentName}'
-param applicationInsightsName string = 'ai-${applicationName}-${enviromentName}-${location}-001'
-param storageAccountName string = 'st${applicationName}${location}001'
-param containerRegistryName string = 'acr${applicationName}${enviromentName}${location}'
-param appServicePlanName string = 'asp-${applicationName}-${enviromentName}-${location}-001'
-param appServiceName string = 'as-${applicationName}-${enviromentName}-${location}'
+var frontDoorEndpointName = 'afd-e-${applicationName}-${enviromentName}'
+var frontDoorProfileName = 'afd-p-${applicationName}-${enviromentName}'
+var frontDoorOriginGroupName = '${applicationName}OriginGroup'
+var frontDoorOriginName = '${applicationName}AppServiceOrigin'
+var frontDoorRouteName = '${applicationName}Route'
+var frontDoorSkuName = 'Standard_AzureFrontDoor'
 
+// param wafPolicyName string = 'waf-${applicationName}-${enviromentName}'
+var applicationInsightsName = 'ai-${applicationName}-${enviromentName}-${location}-001'
+var storageAccountName = 'st${applicationName}${location}001'
+var containerRegistryName = 'acr${applicationName}${enviromentName}${location}'
+var appServicePlanName = 'asp-${applicationName}-${enviromentName}-${location}-001'
+var appServiceName = 'as-${applicationName}-${enviromentName}-${location}'
 var linuxFxVersion = 'php|7.4'
+
+//********* Application Insights *********
+//****************************************
 
 resource appinsights 'Microsoft.Insights/components@2020-02-02' = {
   name: applicationInsightsName
@@ -19,6 +28,9 @@ resource appinsights 'Microsoft.Insights/components@2020-02-02' = {
     Application_Type: 'web'
   }
 }
+
+//********* Storage Account *********
+//***********************************
 
 resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   name: storageAccountName
@@ -51,6 +63,9 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   }
 }
 
+//********* Azure Container Registry *********
+//********************************************
+
 resource containerregistry 'Microsoft.ContainerRegistry/registries@2023-11-01-preview' = {
   name: containerRegistryName
   location: location
@@ -63,7 +78,10 @@ resource containerregistry 'Microsoft.ContainerRegistry/registries@2023-11-01-pr
   }
 }
 
-resource serverFarm 'Microsoft.Web/serverfarms@2023-12-01' = {
+//********* Web App *********
+//***************************
+
+resource appServicePlan 'Microsoft.Web/serverfarms@2023-12-01' = {
   name: appServicePlanName
   location: location
   kind: 'linux'
@@ -76,11 +94,11 @@ resource serverFarm 'Microsoft.Web/serverfarms@2023-12-01' = {
   }
 }
 
-resource webApp 'Microsoft.Web/sites@2023-12-01' = {
+resource app 'Microsoft.Web/sites@2023-12-01' = {
   name: appServiceName
   location: location
   properties: {
-    serverFarmId: serverFarm.id
+    serverFarmId: appServicePlan.id
     siteConfig: {
       linuxFxVersion: linuxFxVersion
       ftpsState: 'FtpsOnly'
@@ -103,9 +121,9 @@ resource webApp 'Microsoft.Web/sites@2023-12-01' = {
   ]
 }
 
-resource storageSetting 'Microsoft.Web/sites/config@2023-12-01' = {
+resource appStorageSetting 'Microsoft.Web/sites/config@2023-12-01' = {
   name: 'azurestorageaccounts'
-  parent: webApp
+  parent: app
   properties: {
     ContentBlobVolume: {
       type: 'AzureBlob'
@@ -127,7 +145,7 @@ resource storageSetting 'Microsoft.Web/sites/config@2023-12-01' = {
 
 resource appSettings 'Microsoft.Web/sites/config@2023-12-01' = {
   name: 'appsettings'
-  parent: webApp
+  parent: app
   properties: {
     WEBSITES_PORT: '2368'
     WEBSITES_ENABLE_APP_SERVICE_STORAGE: 'true'
@@ -145,95 +163,75 @@ resource appSettings 'Microsoft.Web/sites/config@2023-12-01' = {
   }
 }
 
-resource frontDoors 'Microsoft.Network/frontDoors@2021-06-01' = {
-  name: frontDoorName
+//********* Azure Front Doors *********
+//*************************************
+
+resource frontDoorProfile 'Microsoft.Cdn/profiles@2021-06-01' = {
+  name: frontDoorProfileName
   location: 'global'
+  sku: {
+    name: frontDoorSkuName
+  }
+}
 
+resource frontDoorEndpoint 'Microsoft.Cdn/profiles/afdEndpoints@2021-06-01' = {
+  name: frontDoorEndpointName
+  parent: frontDoorProfile
+  location: 'global'
   properties: {
-    backendPoolsSettings: {
-      enforceCertificateNameCheck: 'Disabled'
+    enabledState: 'Enabled'
+  }
+}
+
+resource frontDoorOriginGroup 'Microsoft.Cdn/profiles/originGroups@2021-06-01' = {
+  name: frontDoorOriginGroupName
+  parent: frontDoorProfile
+  properties: {
+    loadBalancingSettings: {
+      sampleSize: 4
+      successfulSamplesRequired: 3
     }
+    healthProbeSettings: {
+      probePath: '/'
+      probeRequestType: 'HEAD'
+      probeProtocol: 'Http'
+      probeIntervalInSeconds: 100
+    }
+  }
+}
 
-    frontendEndpoints: [
-      {
-        id: 'ghostFrontendEndpoint'
-        name: 'ghostFrontendEndpoint'
-        properties: {
-          hostName: '${frontDoorName}.azurefd.net'
-        }
-      }
-    ]
+resource frontDoorOrigin 'Microsoft.Cdn/profiles/originGroups/origins@2021-06-01' = {
+  name: frontDoorOriginName
+  parent: frontDoorOriginGroup
+  properties: {
+    hostName: app.properties.defaultHostName
+    httpPort: 80
+    httpsPort: 443
+    originHostHeader: app.properties.defaultHostName
+    priority: 1
+    weight: 1000
+  }
+}
 
-    loadBalancingSettings: [
-      {
-        name: 'ghostLoadBalancingSettings'
-        properties: {
-          sampleSize: 4
-          successfulSamplesRequired: 2
-        }
-      }
+resource frontDoorRoute 'Microsoft.Cdn/profiles/afdEndpoints/routes@2021-06-01' = {
+  name: frontDoorRouteName
+  parent: frontDoorEndpoint
+  dependsOn: [
+    frontDoorOrigin // This explicit dependency is required to ensure that the origin group is not empty when the route is created.
+  ]
+  properties: {
+    originGroup: {
+      id: frontDoorOriginGroup.id
+    }
+    supportedProtocols: [
+      'Http'
+      'Https'
     ]
-
-    routingRules: [
-      {
-        name: 'ghostBlogRoutingRule'
-        properties: {
-          acceptedProtocols: [
-            'Https'
-          ]
-          patternsToMatch: [
-            '/*'
-          ]
-          frontendEndpoints: [
-            {
-              id: resourceId('Microsoft.Network/frontDoors/frontEndEndpoints', frontDoorName, 'ghostFrontendEndpoint')
-            }
-          ]
-          routeConfiguration: {
-            '@odata.type': '#Microsoft.Azure.FrontDoor.Models.FrontdoorForwardingConfiguration'
-            backendPool: {
-              id: resourceId('Microsoft.Network/frontDoors/backEndPools', frontDoorName, 'ghostBackendBing')
-            }
-            forwardingProtocol: 'MatchRequest'
-          }
-        }
-      }
+    patternsToMatch: [
+      '/*'
     ]
-    backendPools: [
-      {
-        name: 'ghostBackendBing'
-        properties: {
-          loadBalancingSettings: {
-            id: resourceId('Microsoft.Network/frontDoors/loadBalancingSettings', frontDoorName, 'ghostLoadBalancingSettings')
-          }
-          healthProbeSettings: {
-            id: resourceId('Microsoft.Network/frontDoors/healthProbeSettings', frontDoorName, 'ghostHealthProbeSetting')
-          }
-          backends: [
-            {
-              priority: 1
-              backendHostHeader: '${appServiceName}.azurewebsites.net'
-              address: '${appServiceName}.azurewebsites.net'
-              httpPort: 80
-              httpsPort: 443
-              weight: 1
-            }
-          ]
-        }
-      }
-    ]
-    healthProbeSettings: [
-      {
-        id: 'ghostHealthProbeSetting'
-        name: 'ghostHealthProbeSetting'
-        properties: {
-          enabledState: 'Enabled'
-          protocol: 'Https'
-          healthProbeMethod: 'HEAD'
-          path: '/'
-          intervalInSeconds: 30
-        }        
-      }
-    ]
+    forwardingProtocol: 'HttpsOnly'
+    linkToDefaultDomain: 'Enabled'
+    httpsRedirect: 'Enabled'
   }
 }
