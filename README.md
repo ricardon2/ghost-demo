@@ -33,3 +33,12 @@ az deployment group create -g alz-sandbox-rg -f main.bicep --confirm-with-what-i
 
 ## Pipeline Config
 https://learn.microsoft.com/en-us/azure/app-service/deploy-container-github-action?tabs=publish-profile
+
+## Non-Compliant and Remediation
+[Preview]: Container Registry should be Zone Redundant
+
+## Exemption
+[Preview]: Storage Accounts should be Zone Redundant
+
+## Remove policy from Management Group
+[Preview]: App Service Plans should be Zone Redundant

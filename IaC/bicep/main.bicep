@@ -1,5 +1,7 @@
 param location string = resourceGroup().location
+@minLength(3)
 param applicationName string = 'hexalz'
+@minLength(3)
 param enviromentName string = 'dev'
 
 var frontDoorEndpointName = 'afd-e-${applicationName}-${enviromentName}'
@@ -9,7 +11,6 @@ var frontDoorOriginName = '${applicationName}AppServiceOrigin'
 var frontDoorRouteName = '${applicationName}Route'
 var frontDoorSkuName = 'Standard_AzureFrontDoor'
 
-// param wafPolicyName string = 'waf-${applicationName}-${enviromentName}'
 var applicationInsightsName = 'ai-${applicationName}-${enviromentName}-${location}-001'
 var storageAccountName = 'st${applicationName}${location}001'
 var containerRegistryName = 'acr${applicationName}${enviromentName}${location}'
@@ -42,11 +43,19 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
 
   resource blobService 'blobServices@2023-05-01' = {
     name: 'default'
+    properties: {
+      deleteRetentionPolicy: {
+        allowPermanentDelete: false
+        enabled: false
+      }
+    }
 
     resource container 'containers@2023-05-01' = {
      name: 'databaseblob'
      properties: {
       publicAccess: 'None'
+      defaultEncryptionScope: '$account-encryption-key'
+      denyEncryptionScopeOverride: false
      }
     }
   }
@@ -54,10 +63,18 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   resource fileService 'fileServices@2023-05-01' = {
     name: 'default'
 
+    properties: {
+      shareDeleteRetentionPolicy: {
+        days: 7
+        enabled: true
+      }
+    }
+
     resource fileShare 'shares@2023-05-01' = {
      name: 'contentfiles'
      properties: {
       shareQuota: 50
+      accessTier: 'TransactionOptimized'
      }
     }
   }
@@ -70,11 +87,17 @@ resource containerregistry 'Microsoft.ContainerRegistry/registries@2023-11-01-pr
   name: containerRegistryName
   location: location
   sku: {
-    name: 'Standard'
+    name: 'Premium'
   }
 
   properties: {
     adminUserEnabled: true
+    dataEndpointEnabled: false
+    encryption: {
+      status: 'disabled'
+    }
+    metadataSearch: 'Disabled'
+    //zoneRedundancy: 'Enabled' //Remediation
   }
 }
 
@@ -171,6 +194,9 @@ resource frontDoorProfile 'Microsoft.Cdn/profiles@2021-06-01' = {
   location: 'global'
   sku: {
     name: frontDoorSkuName
+  }
+  properties: {
+    originResponseTimeoutSeconds: 30
   }
 }
 
