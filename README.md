@@ -28,7 +28,7 @@ you can learn more about how to set up your your environment for Azure [here](ht
 ## Bicep
 
 ```bicep
-az deployment group create -g alz-sandbox-rg -f main.bicep --confirm-with-what-if
+az deployment group create -g rg-sandbox-azl -f main.bicep --confirm-with-what-if
 ```
 
 ## Pipeline Config
