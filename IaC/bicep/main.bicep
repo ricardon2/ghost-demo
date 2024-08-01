@@ -4,6 +4,8 @@ param applicationName string = 'hexalz'
 @minLength(3)
 param enviromentName string = 'dev'
 
+param keyVaultName string = 'kv-azl-dev'
+
 var frontDoorEndpointName = 'afd-e-${applicationName}-${enviromentName}'
 var frontDoorProfileName = 'afd-p-${applicationName}-${enviromentName}'
 var frontDoorOriginGroupName = '${applicationName}OriginGroup'
@@ -21,13 +23,19 @@ var linuxFxVersion = 'php|7.4'
 //********* Application Insights *********
 //****************************************
 
-resource appinsights 'Microsoft.Insights/components@2020-02-02' = {
+module appinsightsModule 'br:acrbiceptemplatespoc.azurecr.io/web/appinssights:v2' = {
   name: applicationInsightsName
-  location: location
-  kind: 'web'
-  properties: {
-    Application_Type: 'web'
+  params: {
+    keyVaultName: keyVaultName
   }
+  scope: resourceGroup()
+}
+
+//********* Key Vault ***************
+//***********************************
+
+resource keyVault 'Microsoft.KeyVault/vaults@2024-04-01-preview' existing = {
+  name: keyVaultName
 }
 
 //********* Storage Account *********
@@ -40,6 +48,11 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
     name: 'Standard_LRS'
   }
   kind: 'StorageV2'
+
+  properties: {
+    minimumTlsVersion: 'TLS1_2'
+    supportsHttpsTrafficOnly: true
+  }
 
   resource blobService 'blobServices@2023-05-01' = {
     name: 'default'
@@ -120,6 +133,10 @@ resource appServicePlan 'Microsoft.Web/serverfarms@2023-12-01' = {
 resource app 'Microsoft.Web/sites@2023-12-01' = {
   name: appServiceName
   location: location
+  identity: {
+    type: 'SystemAssigned'
+  }
+
   properties: {
     serverFarmId: appServicePlan.id
     siteConfig: {
@@ -135,13 +152,24 @@ resource app 'Microsoft.Web/sites@2023-12-01' = {
             name: 'FrontDoorOnly'
         }
       ]
-
     }
     httpsOnly: true
   }
   dependsOn: [
     storageAccount
+    appinsightsModule
   ]
+}
+
+// Configure permission to read from key vault
+var roleDefinitionId = '4633458b-17de-408a-b874-0445c86b69e6'
+var roleAssignmentName= guid(keyVault.id, roleDefinitionId, resourceGroup().id)
+resource keyVaultSecretReaderRoleAssignment 'Microsoft.Authorization/roleAssignments@2020-04-01-preview' = {
+  name: roleAssignmentName
+  properties: {
+    roleDefinitionId: resourceId('Microsoft.Authorization/roleDefinitions', roleDefinitionId)
+    principalId: app.identity.principalId
+  }
 }
 
 resource appStorageSetting 'Microsoft.Web/sites/config@2023-12-01' = {
@@ -180,8 +208,8 @@ resource appSettings 'Microsoft.Web/sites/config@2023-12-01' = {
     DOCKER_REGISTRY_SERVER_URL: containerregistry.properties.loginServer
     DOCKER_REGISTRY_SERVER_USERNAME: containerregistry.listCredentials().username
     DOCKER_REGISTRY_SERVER_PASSWORD: containerregistry.listCredentials().passwords[0].value
-    APPINSIGHTS_INSTRUMENTATIONKEY: appinsights.properties.InstrumentationKey
-    APPLICATIONINSIGHTS_CONNECTION_STRING: appinsights.properties.ConnectionString
+    APPINSIGHTS_INSTRUMENTATIONKEY: '@Microsoft.KeyVault(SecretUri=${keyVault.properties.vaultUri}secrets/${appinsightsModule.outputs.appInsightsInstrumentationKeySecrettName})'
+    APPLICATIONINSIGHTS_CONNECTION_STRING: '@Microsoft.KeyVault(SecretUri=${keyVault.properties.vaultUri}secrets/${appinsightsModule.outputs.appInsightsappInsightsConnectionStringSecretName})'
     ApplicationInsightsAgent_EXTENSION_VERSION: '~2'
   }
 }
