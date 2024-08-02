@@ -19,3 +19,12 @@ resource kvSecret 'Microsoft.KeyVault/vaults/secrets@2021-06-01-preview' = {
     value: secretValue
   }
 }
+
+@description('secret uri with version')
+output secretUriWithVersion string = kvSecret.properties.secretUriWithVersion
+
+@description('secret name')
+output secretName string = kvSecret.name
+
+@description('secret id')
+output secretId string = kvSecret.id

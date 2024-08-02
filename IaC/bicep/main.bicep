@@ -23,12 +23,13 @@ var linuxFxVersion = 'php|7.4'
 //********* Application Insights *********
 //****************************************
 
-module appinsightsModule 'br:acrbiceptemplatespoc.azurecr.io/web/appinssights:v2' = {
+resource appinsights 'Microsoft.Insights/components@2020-02-02' = {
   name: applicationInsightsName
-  params: {
-    keyVaultName: keyVaultName
+  location: location
+  kind: 'web'
+  properties: {
+    Application_Type: 'web'
   }
-  scope: resourceGroup()
 }
 
 //********* Key Vault ***************
@@ -96,21 +97,12 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
 //********* Azure Container Registry *********
 //********************************************
 
-resource containerregistry 'Microsoft.ContainerRegistry/registries@2023-11-01-preview' = {
-  name: containerRegistryName
-  location: location
-  sku: {
-    name: 'Premium'
-  }
-
-  properties: {
-    adminUserEnabled: true
-    dataEndpointEnabled: false
-    encryption: {
-      status: 'disabled'
-    }
-    metadataSearch: 'Disabled'
-    //zoneRedundancy: 'Enabled' //Remediation
+module containerRegistryModule 'br:acrbiceptemplatespoc.azurecr.io/containerregistry:v1' = {
+  name: 'deploy-acr'
+  params: {
+    containerRegistryName: containerRegistryName
+    keyVaultName: keyVaultName
+    location: location
   }
 }
 
@@ -157,11 +149,10 @@ resource app 'Microsoft.Web/sites@2023-12-01' = {
   }
   dependsOn: [
     storageAccount
-    appinsightsModule
   ]
 }
 
-// Configure permission to read from key vault
+// Configure Key Vault Secrets User permission
 var roleDefinitionId = '4633458b-17de-408a-b874-0445c86b69e6'
 var roleAssignmentName= guid(keyVault.id, roleDefinitionId, resourceGroup().id)
 resource keyVaultSecretReaderRoleAssignment 'Microsoft.Authorization/roleAssignments@2020-04-01-preview' = {
@@ -205,11 +196,11 @@ resource appSettings 'Microsoft.Web/sites/config@2023-12-01' = {
     GHOST_CONTENT: '/var/lib/ghost/content_files/'
     paths__contentPath: '/var/lib/ghost/content_files/'
     privacy__useUpdateCheck: 'false'
-    DOCKER_REGISTRY_SERVER_URL: containerregistry.properties.loginServer
-    DOCKER_REGISTRY_SERVER_USERNAME: containerregistry.listCredentials().username
-    DOCKER_REGISTRY_SERVER_PASSWORD: containerregistry.listCredentials().passwords[0].value
-    APPINSIGHTS_INSTRUMENTATIONKEY: '@Microsoft.KeyVault(SecretUri=${keyVault.properties.vaultUri}secrets/${appinsightsModule.outputs.appInsightsInstrumentationKeySecrettName})'
-    APPLICATIONINSIGHTS_CONNECTION_STRING: '@Microsoft.KeyVault(SecretUri=${keyVault.properties.vaultUri}secrets/${appinsightsModule.outputs.appInsightsappInsightsConnectionStringSecretName})'
+    DOCKER_REGISTRY_SERVER_URL: containerRegistryModule.outputs.loginServer
+    DOCKER_REGISTRY_SERVER_USERNAME: containerRegistryModule.outputs.userName
+    DOCKER_REGISTRY_SERVER_PASSWORD: '@Microsoft.KeyVault(SecretUri=${containerRegistryModule.outputs.secretUriWithVersion})'
+    APPINSIGHTS_INSTRUMENTATIONKEY: appinsights.properties.InstrumentationKey
+    APPLICATIONINSIGHTS_CONNECTION_STRING: appinsights.properties.ConnectionString
     ApplicationInsightsAgent_EXTENSION_VERSION: '~2'
   }
 }
