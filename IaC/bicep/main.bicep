@@ -4,7 +4,7 @@ param applicationName string = 'hexalz'
 @minLength(3)
 param enviromentName string = 'dev'
 
-param keyVaultName string = 'kv-azl-dev'
+param keyVaultName string = 'kv-alz-dev-001'
 
 var frontDoorEndpointName = 'afd-e-${applicationName}-${enviromentName}'
 var frontDoorProfileName = 'afd-p-${applicationName}-${enviromentName}'
@@ -109,16 +109,15 @@ module containerRegistryModule 'br:acrbiceptemplatespoc.azurecr.io/containerregi
 //********* Web App *********
 //***************************
 
-resource appServicePlan 'Microsoft.Web/serverfarms@2023-12-01' = {
-  name: appServicePlanName
-  location: location
-  kind: 'linux'
-
-  sku: {
-    name: 'S1'
-  }
-  properties: {
+module appServicePlan 'br/public:avm/res/web/serverfarm:0.2.2' = {
+  name: 'avm-server-farm-deployment'
+  params: {
+    name: appServicePlanName
+    location: location
+    kind: 'Linux'
+    skuName: 'S1'
     reserved: true
+    skuCapacity: 1
   }
 }
 
@@ -130,7 +129,7 @@ resource app 'Microsoft.Web/sites@2023-12-01' = {
   }
 
   properties: {
-    serverFarmId: appServicePlan.id
+    serverFarmId: appServicePlan.outputs.resourceId
     siteConfig: {
       linuxFxVersion: linuxFxVersion
       ftpsState: 'FtpsOnly'
